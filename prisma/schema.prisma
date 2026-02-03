@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String        @id @default(cuid())
+  email                 String        @unique
+  name                  String?
+  role                  Role          @default(AGENT)
+  avatar                String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  // Add relations with explicit names
+  assignedConversations Conversation[] @relation("AssignedUser")
+  sentMessages         Message[]      @relation("UserMessages")
+}
+
+enum Role {
+  AGENT
+  ADMIN
+  SUPER_ADMIN
+}
+
+model Customer {
+  id            String          @id @default(cuid())
+  email         String          @unique
+  phone         String?
+  name          String?
+  avatar        String?
+  company       String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  conversations Conversation[]
+  notes         CustomerNote[]
+  tags          CustomerTag[]
+}
+
+model Conversation {
+  id          String        @id @default(cuid())
+  customerId  String
+  customer    Customer      @relation(fields: [customerId], references: [id])
+  channel     Channel
+  status      ConversationStatus @default(OPEN)
+  priority    Priority      @default(MEDIUM)
+  subject     String?
+  
+  // Add the relation back to User
+  assignedTo  String?
+  assignedUser User?         @relation("AssignedUser", fields: [assignedTo], references: [id])
+
+  messages    Message[]
+  tags        ConversationTag[]
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  resolvedAt  DateTime?
+}
+
+enum Channel {
+  EMAIL
+  CHAT
+  WHATSAPP
+  PHONE
+  SOCIAL
+}
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  content        String
+  senderType     SenderType
+  senderId       String?
+  
+  // Add the relation back to User
+  userId        String?
+  user         User?      @relation("UserMessages", fields: [userId], references: [id])
+  
+  metadata       Json?    // Additional data like attachments, etc.
+  aiSuggestions  Json?    // Store AI response suggestions
+  
+  createdAt DateTime @default(now())
+}
+
+enum SenderType {
+  CUSTOMER
+  AGENT
+  AI
+  SYSTEM
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+  color String @default("#3b82f6")
+  
+  conversations ConversationTag[]
+  customers     CustomerTag[]
+}
+
+model ConversationTag {
+  id             String @id @default(cuid())
+  conversationId String
+  tagId          String
+  
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  tag          Tag         @relation(fields: [tagId], references: [id])
+  
+  @@unique([conversationId, tagId])
+}
+
+model CustomerTag {
+  id         String @id @default(cuid())
+  customerId String
+  tagId      String
+  
+  customer Customer @relation(fields: [customerId], references: [id])
+  tag      Tag      @relation(fields: [tagId], references: [id])
+  
+  @@unique([customerId, tagId])
+}
+
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  content    String
+  createdBy  String   // User ID
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AutomationRule {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  trigger     Json     // Trigger conditions
+  actions     Json     // Actions to perform
+  enabled     Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model KnowledgeBase {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  category    String
+  tags        String[] @default([])
+  published   Boolean  @default(false)
+  views       Int      @default(0)
+  helpful     Int      @default(0)
+  notHelpful  Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

@@ -1,0 +1,1 @@
+// AutomationCard component
