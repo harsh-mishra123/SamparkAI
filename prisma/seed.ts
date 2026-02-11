@@ -14,7 +14,7 @@ async function main() {
   await prisma.customer.deleteMany()
   await prisma.user.deleteMany()
 
-  console.log('✅ Cleared existing data')
+  console.log('Cleared existing data')
 
   // Create Users (Agents)
   const users = await Promise.all([
